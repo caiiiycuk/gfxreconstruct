@@ -35,8 +35,83 @@
 #include <cstdlib>
 #include <new>
 
+#if defined(__EMSCRIPTEN__)
+#include <emscripten/em_js.h>
+
+// Browser builds read captures from memory, not from a file system: the page stores each capture's bytes
+// (a Uint8Array) in Module.gfxrFiles[name], and Open(name) reads from there.
+EM_JS(int, gfxr_js_open, (const char* name), {
+    var data = Module.gfxrFiles && Module.gfxrFiles[UTF8ToString(name)];
+    if (!data) return -1;
+    Module.gfxrFds = Module.gfxrFds || [];
+    Module.gfxrFds.push({ data : data, pos : 0 });
+    return Module.gfxrFds.length - 1;
+});
+EM_JS(int, gfxr_js_close, (int fd), {
+    Module.gfxrFds[fd] = null;
+    return 0;
+});
+EM_JS(int, gfxr_js_seek, (int fd, double offset, int origin), {
+    var f    = Module.gfxrFds[fd];
+    var base = origin == 0 ? 0 : origin == 1 ? f.pos : f.data.length; // SEEK_SET, SEEK_CUR, SEEK_END
+    if (base + offset < 0) return 0;
+    f.pos = base + offset;
+    return 1;
+});
+EM_JS(double, gfxr_js_read, (int fd, void* buffer, size_t bytes), {
+    var f = Module.gfxrFds[fd];
+    var n = Math.max(0, Math.min(bytes >>> 0, f.data.length - f.pos));
+    HEAPU8.set(f.data.subarray(f.pos, f.pos + n), buffer >>> 0);
+    f.pos += n;
+    return n;
+});
+#endif
+
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(util)
+
+#if FILE_INPUT_STREAM_USE_FREAD == 0
+namespace
+{
+#if defined(__EMSCRIPTEN__)
+int OpenFd(const char* filename, int)
+{
+    return gfxr_js_open(filename);
+}
+int CloseFd(int fd)
+{
+    return gfxr_js_close(fd);
+}
+bool SeekFd(int fd, int64_t offset, platform::FileSeekOrigin origin)
+{
+    return gfxr_js_seek(fd, static_cast<double>(offset), origin) != 0;
+}
+size_t ReadFd(void* buffer, size_t bytes, int fd, platform::FileReadStatus& status)
+{
+    size_t read = static_cast<size_t>(gfxr_js_read(fd, buffer, bytes));
+    status      = read < bytes ? platform::FileReadStatus::kEof : platform::FileReadStatus::kSuccess;
+    return read;
+}
+#else
+int OpenFd(const char* filename, int oflag)
+{
+    return platform::FileOpenFd(filename, oflag);
+}
+int CloseFd(int fd)
+{
+    return platform::FileClose(fd);
+}
+bool SeekFd(int fd, int64_t offset, platform::FileSeekOrigin origin)
+{
+    return platform::FileSeek(fd, offset, origin);
+}
+size_t ReadFd(void* buffer, size_t bytes, int fd, platform::FileReadStatus& status)
+{
+    return platform::FileReadBytes(buffer, bytes, fd, status);
+}
+#endif
+} // namespace
+#endif
 
 bool FStreamFileInputStream::IsOpen() const
 {
@@ -89,7 +164,7 @@ bool FStreamFileInputStream::Open(const std::string& filename)
     int mode = O_RDONLY | O_BINARY;
 #endif
 
-    fd_          = util::platform::FileOpenFd(filename.c_str(), mode);
+    fd_          = OpenFd(filename.c_str(), mode);
     bool success = fd_ >= 0;
     if (success)
     {
@@ -130,7 +205,7 @@ void FStreamFileInputStream::Close()
 #else
     if (fd_ != -1)
     {
-        util::platform::FileClose(fd_);
+        CloseFd(fd_);
         fd_ = -1;
 
         if (read_ahead_buffer_ != nullptr)
@@ -180,7 +255,11 @@ bool FStreamFileInputStream::FileSeek(int64_t offset, util::platform::FileSeekOr
         read_ahead_bytes_  = 0;
         read_ahead_offset_ = 0;
 
+        #if FILE_INPUT_STREAM_USE_FREAD
         bool success = util::platform::FileSeek(fd_, offset, origin);
+#else
+        bool success = SeekFd(fd_, offset, origin);
+#endif
 
 #if FILE_INPUT_STREAM_USE_FREAD == 0
         // NOTE: we aren't tracking the specific seek errors here, as we don't have status
@@ -248,7 +327,7 @@ size_t FStreamFileInputStream::ReadBytesImpl(void* buffer, size_t bytes)
 #if FILE_INPUT_STREAM_USE_FREAD
     return util::platform::FileReadBytes(buffer, bytes, fd_);
 #else
-    return util::platform::FileReadBytes(buffer, bytes, fd_, last_read_status_);
+    return ReadFd(buffer, bytes, fd_, last_read_status_);
 #endif
 }
 
