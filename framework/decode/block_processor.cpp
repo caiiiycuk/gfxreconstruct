@@ -172,13 +172,17 @@ file_processor::ProcessBlockState BlockProcessor::ProcessBlock(Policy& policy, B
 }
 
 template <typename Policy>
-file_processor::ProcessBlockState BlockProcessor::ProcessBlocks(Policy& policy)
+file_processor::ProcessBlockState BlockProcessor::ProcessBlocks(Policy& policy, uint64_t max_blocks)
 {
     BlockBuffer                       block_buffer;
     file_processor::ProcessBlockState process_state = file_processor::ProcessBlockState::kContinue;
 
-    while (process_state == file_processor::ProcessBlockState::kContinue)
+    for (uint64_t n = 0; process_state == file_processor::ProcessBlockState::kContinue; ++n)
     {
+        if (max_blocks != 0 && n == max_blocks)
+        {
+            return process_state;
+        }
         process_state = ProcessBlock(policy, block_buffer);
     }
 
@@ -555,11 +559,12 @@ BlockProcessor::ActiveFileContext& BlockProcessor::GetCurrentFile()
 
 // Explicit template instantiations -- all three policies that ProcessBlocks is used with.
 template file_processor::ProcessBlockState
-BlockProcessor::ProcessBlocks<file_processor::PreloadProcessPolicy>(file_processor::PreloadProcessPolicy&);
+BlockProcessor::ProcessBlocks<file_processor::PreloadProcessPolicy>(file_processor::PreloadProcessPolicy&, uint64_t);
 template file_processor::ProcessBlockState
-BlockProcessor::ProcessBlocks<file_processor::SynchronousProcessPolicy>(file_processor::SynchronousProcessPolicy&);
+BlockProcessor::ProcessBlocks<file_processor::SynchronousProcessPolicy>(file_processor::SynchronousProcessPolicy&,
+                                                                        uint64_t);
 template file_processor::ProcessBlockState
-BlockProcessor::ProcessBlocks<file_processor::AsyncProcessPolicy>(file_processor::AsyncProcessPolicy&);
+BlockProcessor::ProcessBlocks<file_processor::AsyncProcessPolicy>(file_processor::AsyncProcessPolicy&, uint64_t);
 
 GFXRECON_END_NAMESPACE(decode)
 GFXRECON_END_NAMESPACE(gfxrecon)

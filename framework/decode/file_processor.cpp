@@ -162,7 +162,13 @@ bool FileProcessor::ProcessNextFrameAsync()
     return ContinueProcessing(result.state);
 }
 
-bool FileProcessor::ProcessNextFrameSync()
+bool FileProcessor::ProcessNextBlocks(uint64_t max_blocks)
+{
+    GFXRECON_ASSERT(frame_processing_initialized_ && max_blocks != 0);
+    return ProcessNextFrameSync(max_blocks);
+}
+
+bool FileProcessor::ProcessNextFrameSync(uint64_t max_blocks)
 {
     GFXRECON_ASSERT(!AsyncProcessingEnabled()); // block_processor_ is null in async mode
     if (!block_processor_->IsFileValid())
@@ -192,7 +198,7 @@ bool FileProcessor::ProcessNextFrameSync()
     GFXRECON_ASSERT(dispatch_frame_number_ == block_processor_->GetProcessFrameNumber());
 
     SetDecoderFrameNumber(dispatch_frame_number_);
-    ProcessBlockState process_result = block_processor_->ProcessBlocks(process_policy);
+    ProcessBlockState process_result = block_processor_->ProcessBlocks(process_policy, max_blocks);
 
     // In sync mode, process-side state is directly usable as the dispatch-side snapshot.
     ProcessBlocksResult result = block_processor_->MakeResult(process_result);

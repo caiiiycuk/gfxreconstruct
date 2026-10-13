@@ -102,6 +102,7 @@ class BlockProcessor
     std::unique_ptr<util::Compressor> CreateReplayCompressor() const;
 
     uint64_t                          GetProcessFrameNumber() const noexcept { return frame_number_; }
+    uint64_t                          GetProcessBlockIndex() const noexcept { return block_index_; }
     BlockIOError                      GetProcessError() const noexcept { return error_state_; }
     file_processor::FrameNumber       GetQuitBeforeFrame() const noexcept { return params_.quit_before_frame; }
     const file_processor::FrameRange& GetPreloadRange() const noexcept { return params_.preload_range; }
@@ -125,8 +126,9 @@ class BlockProcessor
     template <typename Policy>
     file_processor::ProcessBlockState ProcessBlock(Policy& policy, BlockBuffer& block_buffer);
 
+    // A non-zero max_blocks stops after that many blocks and returns kContinue if the frame is not done.
     template <typename Policy>
-    file_processor::ProcessBlockState ProcessBlocks(Policy& policy);
+    file_processor::ProcessBlockState ProcessBlocks(Policy& policy, uint64_t max_blocks = 0);
 
     // -------------------------------------------------------------------------
     // ProcessVisitor callbacks -- public because ProcessVisitor dispatches into them
@@ -227,11 +229,12 @@ class BlockProcessor
 
 // Explicit instantiation declarations -- definitions live in block_processor.cpp.
 extern template file_processor::ProcessBlockState
-BlockProcessor::ProcessBlocks<file_processor::PreloadProcessPolicy>(file_processor::PreloadProcessPolicy&);
+BlockProcessor::ProcessBlocks<file_processor::PreloadProcessPolicy>(file_processor::PreloadProcessPolicy&, uint64_t);
 extern template file_processor::ProcessBlockState
-BlockProcessor::ProcessBlocks<file_processor::SynchronousProcessPolicy>(file_processor::SynchronousProcessPolicy&);
+BlockProcessor::ProcessBlocks<file_processor::SynchronousProcessPolicy>(file_processor::SynchronousProcessPolicy&,
+                                                                        uint64_t);
 extern template file_processor::ProcessBlockState
-BlockProcessor::ProcessBlocks<file_processor::AsyncProcessPolicy>(file_processor::AsyncProcessPolicy&);
+BlockProcessor::ProcessBlocks<file_processor::AsyncProcessPolicy>(file_processor::AsyncProcessPolicy&, uint64_t);
 
 GFXRECON_END_NAMESPACE(decode)
 GFXRECON_END_NAMESPACE(gfxrecon)

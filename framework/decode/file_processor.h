@@ -117,6 +117,11 @@ class FileProcessor
     // occurred.  Use GetErrorState() to determine error condition.
     virtual bool ProcessNextFrame();
 
+    // Sync mode only. Like ProcessNextFrame(), but stops after max_blocks blocks; the next call resumes the same
+    // frame. GetProcessBlockIndex() is the index of the next block to read.
+    bool     ProcessNextBlocks(uint64_t max_blocks);
+    uint64_t GetProcessBlockIndex() const { return block_processor_->GetProcessBlockIndex(); }
+
     // Returns false if processing failed.  Use GetErrorState() to determine error condition for failure case.
     bool ProcessAllFrames();
 
@@ -178,7 +183,7 @@ class FileProcessor
 
   private:
     bool ProcessNextFrameAsync();
-    bool ProcessNextFrameSync();
+    bool ProcessNextFrameSync(uint64_t max_blocks = 0);
 
     void SetDecoderFrameNumber(uint64_t frame_number);
 
