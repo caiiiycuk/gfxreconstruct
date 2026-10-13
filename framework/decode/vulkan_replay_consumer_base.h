@@ -311,7 +311,7 @@ class VulkanReplayConsumerBase : public VulkanConsumer
 
     PFN_vkGetInstanceProcAddr GetGetInstanceProcAddr()
     {
-        if (loader_handle_ == nullptr)
+        if (create_instance_proc_ == nullptr)
             InitializeLoader(); // Ensures GIPA is set
         return get_instance_proc_addr_;
     }
@@ -1925,6 +1925,13 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     void SetupForRecapture(PFN_vkGetInstanceProcAddr get_instance_proc_addr,
                            PFN_vkCreateInstance      create_instance,
                            PFN_vkCreateDevice        create_device);
+
+    // Use this vkGetInstanceProcAddr (e.g. a statically linked implementation) instead of the Vulkan loader.
+    // The loader library is then never opened. Call before the first vkCreateInstance is replayed.
+    void SetGetInstanceProcAddr(PFN_vkGetInstanceProcAddr get_instance_proc_addr)
+    {
+        get_instance_proc_addr_ = get_instance_proc_addr;
+    }
 
     virtual void PushRecaptureHandleId(const format::HandleId* id) override;
     virtual void PushRecaptureHandleIds(const format::HandleId* id_array, uint64_t id_count) override;

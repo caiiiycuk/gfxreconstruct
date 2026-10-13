@@ -1505,7 +1505,12 @@ void VulkanReplayConsumerBase::ClearRecaptureHandleIds()
 
 void VulkanReplayConsumerBase::InitializeLoader()
 {
-    loader_handle_ = graphics::InitializeLoader(getenv("GFXRECON_VULKAN_LIBRARY_PATH"));
+    // A get_instance_proc_addr_ set via SetGetInstanceProcAddr() or SetupForRecapture() without capture does not
+    // need the loader.
+    if ((get_instance_proc_addr_ == nullptr) || options_.capture)
+    {
+        loader_handle_ = graphics::InitializeLoader(getenv("GFXRECON_VULKAN_LIBRARY_PATH"));
+    }
 
     // Only get get_instance_proc_addr_ from the loader if it wasn't already set via SetupForRecapture()
     if ((loader_handle_ != nullptr) && (get_instance_proc_addr_ == nullptr))
@@ -2862,7 +2867,7 @@ void VulkanReplayConsumerBase::ModifyCreateInstanceInfo(
 {
     const VkInstanceCreateInfo* replay_create_info = pCreateInfo->GetPointer();
 
-    if (loader_handle_ == nullptr)
+    if (create_instance_proc_ == nullptr)
     {
         InitializeLoader();
     }
