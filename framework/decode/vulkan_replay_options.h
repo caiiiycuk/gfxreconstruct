@@ -171,6 +171,8 @@ struct VulkanReplayOptions : public ReplayOptions
     util::PresentModeOption present_mode_option{ util::PresentModeOption::kCapture };
     bool                    virtual_swapchain_skip_blit{ false };
     bool                    annotate_injected_commands{ false };
+    // Report replay errors that did not occur at capture as warnings and keep replaying.
+    bool                    continue_on_failed_result{ false };
 
     // optionally override swapchain-images by providing an image debug-utils name
     std::string present_override_image_name;
