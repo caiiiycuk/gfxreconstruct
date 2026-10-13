@@ -29,32 +29,38 @@
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(application)
 
-HeadlessContext::HeadlessContext(Application* application, bool dpi_aware) : WsiContext(application)
+HeadlessContext::HeadlessContext(Application*              application,
+                                 bool                      dpi_aware,
+                                 PFN_vkGetInstanceProcAddr get_instance_proc_addr) :
+    WsiContext(application)
 {
     bool supported = false;
 
     // Check for headless extension support, and report initialization failure when the extension is not present.
-    auto loader_handle = graphics::InitializeLoader();
+    auto loader_handle = (get_instance_proc_addr == nullptr) ? graphics::InitializeLoader() : nullptr;
     if (loader_handle != nullptr)
     {
-        auto get_instance_proc_addr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
+        get_instance_proc_addr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
             util::platform::GetProcAddress(loader_handle, "vkGetInstanceProcAddr"));
+    }
 
-        if (get_instance_proc_addr != nullptr)
+    if (get_instance_proc_addr != nullptr)
+    {
+        auto instance_extension_proc = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
+            get_instance_proc_addr(nullptr, "vkEnumerateInstanceExtensionProperties"));
+        std::vector<VkExtensionProperties> properties;
+
+        if (graphics::feature_util::GetInstanceExtensions(instance_extension_proc, &properties) == VK_SUCCESS)
         {
-            auto instance_extension_proc = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
-                get_instance_proc_addr(nullptr, "vkEnumerateInstanceExtensionProperties"));
-            std::vector<VkExtensionProperties> properties;
-
-            if (graphics::feature_util::GetInstanceExtensions(instance_extension_proc, &properties) == VK_SUCCESS)
+            if (graphics::feature_util::IsSupportedExtension(properties, VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME))
             {
-                if (graphics::feature_util::IsSupportedExtension(properties, VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME))
-                {
-                    supported = true;
-                }
+                supported = true;
             }
         }
+    }
 
+    if (loader_handle != nullptr)
+    {
         graphics::ReleaseLoader(loader_handle);
     }
 

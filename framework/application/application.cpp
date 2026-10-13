@@ -441,7 +441,9 @@ bool Application::InitializeWsiContext(const char* pSurfaceExtensionName, void* 
 #if defined(VK_USE_PLATFORM_HEADLESS)
             if (!util::platform::StringCompare(pSurfaceExtensionName, VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME))
         {
-            std::unique_ptr<HeadlessContext> platform_context = std::make_unique<HeadlessContext>(this);
+            // Optional platform data for headless: the vkGetInstanceProcAddr to use instead of the Vulkan loader.
+            std::unique_ptr<HeadlessContext> platform_context = std::make_unique<HeadlessContext>(
+                this, true, reinterpret_cast<PFN_vkGetInstanceProcAddr>(pPlatformSpecificData));
             if (platform_context->Valid())
             {
                 wsi_contexts_[VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME] = std::move(platform_context);

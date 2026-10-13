@@ -32,7 +32,10 @@ GFXRECON_BEGIN_NAMESPACE(application)
 class HeadlessContext : public WsiContext
 {
   public:
-    HeadlessContext(Application* application, bool dpi_aware = true);
+    // get_instance_proc_addr: query this Vulkan implementation instead of loading the Vulkan loader.
+    HeadlessContext(Application*              application,
+                    bool                      dpi_aware              = true,
+                    PFN_vkGetInstanceProcAddr get_instance_proc_addr = nullptr);
 
     virtual void ProcessEvents(bool wait_for_input) override;
 
