@@ -224,7 +224,8 @@ VulkanReplayConsumerBase::VulkanReplayConsumerBase(std::shared_ptr<application::
     load_save_caches_in_same_file(!options.save_pipeline_cache_filename.empty() &&
                                   options.save_pipeline_cache_filename == options.load_pipeline_cache_filename)
 {
-    object_info_table_ = CommonObjectInfoTable::GetSingleton();
+    object_info_table_ =
+        options.own_object_info_table ? new CommonObjectInfoTable() : CommonObjectInfoTable::GetSingleton();
     assert(object_info_table_);
 
     assert(application_ != nullptr);
@@ -373,7 +374,14 @@ VulkanReplayConsumerBase::~VulkanReplayConsumerBase()
         graphics::ReleaseLoader(loader_handle_);
     }
 
-    CommonObjectInfoTable::ReleaseSingleton();
+    if (options_.own_object_info_table)
+    {
+        delete object_info_table_;
+    }
+    else
+    {
+        CommonObjectInfoTable::ReleaseSingleton();
+    }
     object_info_table_ = nullptr;
 }
 

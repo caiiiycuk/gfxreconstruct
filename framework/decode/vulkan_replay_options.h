@@ -173,6 +173,8 @@ struct VulkanReplayOptions : public ReplayOptions
     bool                    annotate_injected_commands{ false };
     // Report replay errors that did not occur at capture as warnings and keep replaying.
     bool                    continue_on_failed_result{ false };
+    // Keep this consumer's handle ids in its own table, so that several captures can replay in one process.
+    bool                    own_object_info_table{ false };
 
     // optionally override swapchain-images by providing an image debug-utils name
     std::string present_override_image_name;
